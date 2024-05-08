@@ -1,0 +1,27 @@
+Metadata-Version: 2.1
+Name: AnimalPathMapping
+Version: 0.0.1
+Summary: Python package for automatically labeling animal paths173572 in Davies lab imagery of conservation sites in Africa.
+Home-page: https://github.com/nadinaham/cs288-animal-paths
+Author: Nadine Han, Samantha Marks, and Yiyi Wang
+Author-email: nhan@college.harvard.edu, samanthamarks@college.harvard.edu, yiyiwang@fas.harvard.edu
+License: none
+Requires-Python: ==3.12.2
+Description-Content-Type: text/markdown
+
+AnimalPathMapping: a Python package for autonomously labeling animal paths in RGB and LiDAR imagery taken by the Davies lab of conservation sites in Africa.
+
+Getting started (note that every time you modify the code and want to run it, you'll have to do this):
+To install the package, complete the following steps:
+1. cd into the root directory of this package (the outer-level AnimalPathMapping folder)
+2. activate the conda environment: "conda activate /n/davies_lab/Lab/shared_conda_envs/AnimalPathMapping"
+    - if you do not have access to this environment, create your own conda environment with the packages listed in requirements.txt
+3. run the command "python setup.py sdist"
+    - this should create our distribution package and egg-info (you should see the folders 'dist/' and 'AnimalPathMapping.egg-info/' with our package in 'dist/')
+    - after this step, our package can be installed with pip
+4. run the command "pip install ./dist/AnimalPathMapping-0.0.1.tar.gz"
+    - if this doesn't work, check the name of the .tar.gz file inside of the 'dist/' folder and replace 'AnimalPathMapping-0.0.1.tar.gz' with that file name, including the file extension.
+    - if this was successful, you should be able to open a Python interpreter somewhere outside our project directory and use our package
+    - TODO make a file to run to test if its working
+
+TODO: in the future: make a bash.rc file that does steps 2-4 automatically (would have to find the file name created inside "dist/").  Then update the instructions here to run that bash file and then our testing suite/at the very least a greeting file to make sure that the package can run.
