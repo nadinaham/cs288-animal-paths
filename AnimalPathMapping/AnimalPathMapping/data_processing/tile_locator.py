@@ -1,3 +1,9 @@
+"""
+By Lucia Gordon.  Helper functions for calculating coordinates of imaage tiles
+in pixels and meters.  Not used in our data processing pipeline.  May be helpful
+for future work tiling together predicted paths into one .tiff or .shapefile.
+"""
+
 def get_image_center_pixels(identifier):
     NUM_HORIZONTAL = get_num_horizontal()
     THERMAL_STRIDE = get_thermal_stride()

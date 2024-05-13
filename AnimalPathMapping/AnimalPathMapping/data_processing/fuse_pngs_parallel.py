@@ -1,9 +1,11 @@
 '''
-fuse by Samantha Marks and Lucia Gordon
+fuse_pngs_parallel by Samantha Marks
 inputs: thermal, RGB, and LiDAR image arrays
-outputs: fused image arrays for thermal-RGB, (TODO: removed: thermal-LiDAR, and RGB-LiDAR)
+outputs: saves fused image arrays for thermal-RGB
 
-TODO: make parallelized version of this which grabs by image id (path to image with same id for each of the modalities as input)
+To run, use 'fuse_parallel_processing.sh' under 'AnimalPathMapping/sbatchs/data_processing'
+and fill in the variables appropriately (read all instructions carefully, it will refer you
+to using 'get_fuse_parallel_processing_cmds.sh')
 '''
 
 # imports
@@ -46,7 +48,20 @@ def fuse_parallel(image_tiles_path: str, output_path: str, ident: str, modality1
         image to fuse across modalities, assumes the same image has the same
         id across its representation in the different modalities)
 
+    modality1: str
+        name of modality of image tiles to fuse with modality2, should be one
+        of "rgb", "thermal", or "lidar"
+
+    modality2: str
+        name of modality of image tiles to fuse with modality1, should be one
+        of "rgb", "thermal", or "lidar"
+
+    modality3: 
+        name of modality of image tiles to fuse with the fused modality1+modality2, 
+        should be one of "rgb", "thermal", or "lidar"
+
     Returns:
+    --------
     fused_arrays: list
         list of numpy arrays, with each numpy array corresponding to a fused
         image tile (image tile that has been fused across multiple modalities,
@@ -98,14 +113,31 @@ def fuse_weighted_parallel(image_tiles_path: str, output_path: str, ident: str, 
         image to fuse across modalities, assumes the same image has the same
         id across its representation in the different modalities)
 
-    TODO modality
+    modality1: str
+        name of modality of image tiles to fuse with modality2, should be one
+        of "rgb", "thermal", or "lidar"
 
+    modality2: str
+        name of modality of image tiles to fuse with modality1, should be one
+        of "rgb", "thermal", or "lidar"
+
+    modality3: 
+        name of modality of image tiles to fuse with the fused modality1+modality2, 
+        should be one of "rgb", "thermal", or "lidar"
+        
     modality2_weight: int
         weighting of modality 2 image (between 0 and 1), 0.2 means resulting
         combination of images 1 and 2 puts 0.8 weight on image 1, 0.2 weight
         on image 2 to get the resulting combination of the 2
+    
+    modality2_weight: int
+        weighting of modality 3 image (between 0 and 1) when combining with 
+        the fused modality1+modality2 image. 0.2 means resulting
+        combination of images 1 and 2 puts 0.8 weight on image 1, 0.2 weight
+        on fused modality1+modality2 to get the resulting combination of the 3
 
     Returns:
+    --------
     fused_arrays: list
         list of numpy arrays, with each numpy array corresponding to a fused
         image tile (image tile that has been fused across multiple modalities,
@@ -137,10 +169,8 @@ if __name__ == '__main__':
     print(f"Inputted RGB weight is: {rgb_weight}")
     # assumes path looks like this: {image_tiles_path}/{modality1}-tiles/png-images/{modality1}-{i}.png'
     # and that image_tiles_path contains 'rgb-tiles', 'thermal-tiles' and 'lidar-tiles' folders
-    # TODO temporarily assumes not using lidar images
-    # and same image across the 3 modalities ends with the same id, 'i'.
-    # TODO later add sanity check that does look like this (check i is numeric, 
-    # check image_tiles_path ends with the rest of the file structure, etc)
+    # NOTE: also assumes not using lidar images
+    # and same image across the 2 modalities ends with the same id, 'i'.
 
     # get image_tiles_path and the identifier i
     file_base, _ = os.path.splitext(image_path) # remove file extension
@@ -159,16 +189,6 @@ if __name__ == '__main__':
             # assuming other function call tried to make the dir
             pass
 
-    # TODO remove (this is thermal-rgb 50-50) once have a set ratio for thermal and RGB
-    # output_path = f'{image_tiles_path}/fused/tr-fused'
-    # if not os.path.exists(output_path):
-    #     try:
-    #         os.mkdir(output_path)
-    #     except:
-    #         # assuming other function call tried to make the dir
-    #         pass
-    # np.save(f'{output_path}/tr-fused-all.npy', fuse_parallel(image_tiles_path, output_path, ident, 'thermal', 'rgb'))
-
     # Fuse together thermal and RGB image tile, putting 80% weight on RGB
     thermal_weight = int(round(((1 - rgb_weight) * 100)))
     output_path = f'{image_tiles_path}/fused/tr-fused-{thermal_weight}-{int(rgb_weight * 100)}'
@@ -182,41 +202,4 @@ if __name__ == '__main__':
     print(f'thermal-RGB {thermal_weight}-{100-thermal_weight} fusing done')
     
 
-    # TODO take this out or make lidar optional command argument
-    # output_path = f'{image_tiles_path}/fused/tl-fused'
-    # if not os.path.exists(output_path):
-    #     try:
-    #         os.mkdir(output_path)
-    #     except:
-    #         # assuming other function call tried to make the dir
-    #         pass
-    # np.save(f'{output_path}/tl-fused-all.npy', fuse_parallel(image_tiles_path, output_path, ident, 'thermal', 'lidar'))
-    # print('thermal-LiDAR fusing done')
-    # output_path = f'{image_tiles_path}/fused/rl-fused'
-    # if not os.path.exists(output_path):
-    #     try:
-    #         os.mkdir(output_path)
-    #     except:
-    #         # assuming other function call tried to make the dir
-    #         pass
-    # np.save(f'{output_path}/rl-fused-all.npy', fuse_parallel(image_tiles_path, output_path, ident, 'rgb', 'lidar'))
-    # print('RGB-LiDAR fusing done')
-    # output_path = f'{image_tiles_path}/fused/trl-fused'
-    # if not os.path.exists(output_path):
-    #     try:
-    #         os.mkdir(output_path)
-    #     except:
-    #         pass
-    # np.save(f'{output_path}/trl-fused-all.npy', fuse_parallel(image_tiles_path, output_path, ident, 'thermal', 'rgb', 'lidar'))
-    # print('thermal-RGB-LiDAR fusing done')
-    # output_path = f'{image_tiles_path}/fused/trl-fused-(20-80)-15'
-    # if not os.path.exists(output_path):
-    #     try:
-    #         os.mkdir(output_path)
-    #     except:
-    #         # assuming other function call tried to make the dir
-    #         pass
-    # np.save(f'{output_path}/trl-fused-all.npy', fuse_weighted_parallel(image_tiles_path, output_path, ident, 'thermal', 'rgb', 0.8, 'lidar', 0.15))
-    # print('thermal-RGB (20-80)-15 fusing done')
     
-

@@ -1,7 +1,16 @@
 '''
 tile_orthomosiac by Samantha Marks and Lucia Gordon
-inputs: thermal, RGB, LiDAR, and possibly labels
-outputs: thermal, RGB, and LiDAR PNG images and arrays, identifiers, possibly labels, and thermal maximum pixel values
+inputs: thermal, (optional) RGB, (optional) LiDAR, and possibly labels
+outputs (all optional): thermal, RGB, and LiDAR PNG images and arrays, identifiers, possibly labels, and thermal maximum pixel values
+
+To run, use 'tile_orthomosaics.sh' under 'AnimalPathMapping/sbatchs/data_processing'
+and fill in the variables appropriately.
+OR type in the terminal:
+python tile_orthomosaic.py thermal_tiff_path, rgb_tiff_path, lidar_tiff_path, 
+    mask_tiff_path, save_thermal, save_rgb, save_lidar, save_mask
+
+NOTE: see 'tile_orthomosaics()' function below for specifications of the
+arguments listed above.
 '''
 
 # imports
@@ -13,49 +22,8 @@ import sys
 from sys import argv
 from PIL import Image
 
-# # global variables
-# folder = argv[1]
-# with_labels = True if (len(argv) > 1 and argv[2] == 'labels') else False
 
-# # folders
-# for modality in ['thermal', 'rgb', 'lidar']:
-#     if not os.path.exists(f'{folder}/png-images/{modality}'):
-#         os.mkdir(f'{folder}/png-images/{modality}')
-
-# functions
-def save_png_matrices_plt(raw_images, modality):
-    """
-    Saves numpy arrays corresponding to images as pngs by plotting them as 
-    a matplotlib figure.  Also reads them back into numpy arrays and saves these.
-    NOTE: this results in loss of resolution
-
-    TODO: folder param
-    """
-    png_arrays = []
-
-    for i in range(len(raw_images)):
-        plt.figure(dpi = 60.7) # dpi=60.7 to get resultant arrays of (224,224,3), dpi=11 to get resultant arrays of (40,40,3), 27.3 for 100
-        image = plt.imshow(raw_images[i]) # plot the array of pixel values as an image
-
-        if modality == 'thermal' or modality == 'lidar':
-            # NOTE: thermal data is type float 32, this assumes values are between and 1
-            # lidar data is uint 8
-            # what both thermal and lidar share in common is that they are 
-            # single band (have 1 channel)
-            # so cmap turns them into RGBA (for each pixel in 2D numpy array
-            # replaces it with a (R, G, B, A) data value -> adds a dimension
-            # to the numpy array to store this), A (trasparency) = 1, RGB
-            # set based off of original pixel value
-            image.set_cmap('inferno')
-        
-        plt.axis('off') # remove axes        
-        plt.savefig(f'{folder}/png-images/{modality}/{modality}-{i}.png', bbox_inches = 'tight', pad_inches = 0) # temporarily save the image
-        plt.close() # close the image to save memory
-        png_arrays.append(imread(f'{folder}/png-images/{modality}/{modality}-{i}.png')) # convert the PNG image to a 3D array
-    
-    np.save(f'{folder}/data/{modality}/{modality}-images', png_arrays)
-
-def save_matrices_to_png_plt2(raw_image_arrs: list, modality: str, output_folder: str):
+def save_matrices_to_png_plt2(raw_image_arrs: list, modality: str, output_folder: str, new_width: int):
     """
     Processes numpy arrays tiled (sliced) from a tiff of type <modality> 
     that had been processed into an orthomosaic (numpy array) by 
@@ -85,6 +53,12 @@ def save_matrices_to_png_plt2(raw_image_arrs: list, modality: str, output_folder
         and
         {output_folder}/{modality}-tiles/png-images/ 
             (contains the tiles as pngs)
+
+    new_width: int
+        side length (in pixels) to resize all image tiles to
+        NOTE: for detecting animal paths, the RGB should NOT be shrunk so
+        new_size should be >= rgb_tile_size (the side length the RGB images
+        were sliced to have)
     """
     # create folders for storing the tiles in
     if not os.path.exists(f'{output_folder}/{modality}-tiles'):
@@ -93,11 +67,6 @@ def save_matrices_to_png_plt2(raw_image_arrs: list, modality: str, output_folder
         os.mkdir(f'{output_folder}/{modality}-tiles/png-images')
     if not os.path.exists(f'{output_folder}/{modality}-tiles/numpy-images'):
         os.mkdir(f'{output_folder}/{modality}-tiles/numpy-images')
-
-    # will resize images to 400 by 400 to match RGB (TODO later take out hardcoding)
-    # new_width = 400
-    new_width = 800
-    # new_width = 1200
 
     # arrays to hold image numpy arrays after they've been coverted to pngs
     # and reread back into numpy arrays
@@ -122,7 +91,6 @@ def save_matrices_to_png_plt2(raw_image_arrs: list, modality: str, output_folder
             # values should be between 0 and 1
             # assumes lidar orthomosaic is of type uint.8, all values should 
             # be between 0 and 255
-            # plt.imsave(f'{output_folder}/{modality}-tiles/png-images/{modality}-{i}.png', raw_image_arrs[i], cmap="inferno")
             plt.imsave(f'{output_folder}/{modality}-tiles/png-images/{modality}-{i}.png', resize_arr, cmap="inferno")
             # reread image saved as png back into numpy array
             png_arrays.append(imread(f'{output_folder}/{modality}-tiles/png-images/{modality}-{i}.png'))
@@ -130,7 +98,6 @@ def save_matrices_to_png_plt2(raw_image_arrs: list, modality: str, output_folder
 
         # NOTE: maintaining RGB and mask sizes bc mask sizes are too small to resize
         # and get good performance in the Mask R-CNN model
-        # TODO later take out hard coding of new size and not RGB
         elif modality == "path-mask":
             # for this modality, assumption is that for each path id 'pi' from
             # path label shapefile, all pixels belonging to path 'pi' have value
@@ -149,9 +116,6 @@ def save_matrices_to_png_plt2(raw_image_arrs: list, modality: str, output_folder
 
 
         elif modality == "rgb":
-             # TODO temporary fix, take out
-            # if (i <= 7333):
-            #     continue
             # assumes this is RGB data (has R, G, and B channels) so can
             # save as original colors
             plt.imsave(f'{output_folder}/{modality}-tiles/png-images/{modality}-{i}.png', raw_image_arrs[i])
@@ -166,7 +130,7 @@ def save_matrices_to_png_plt2(raw_image_arrs: list, modality: str, output_folder
 
         
         
-def tile_thermal_orthomosaic(orthomosaic_path: str, with_midden_labels: bool, midden_path: str, constants_path: str):
+def tile_thermal_orthomosaic(orthomosaic_path: str, with_midden_labels: bool, midden_path: str, constants_path: str, thermal_interval: int):
     """
     Slices the thermal orthomosaic (numpy array processed from tiff for
     thermal data by 'align_orthomosaics.py') into uniformly sized pieces.
@@ -194,6 +158,10 @@ def tile_thermal_orthomosaic(orthomosaic_path: str, with_midden_labels: bool, mi
         file name in 'orthomosaic_path' and ends with
         '-thermal-processing-info.npy') generated by 'align_orthomosaics.py'
         during processing of thermal tiff image into orthomosaic
+
+    thermal_interval: int
+        side length (in pixels) of the tiled images sliced from the thermal
+        orthomosaic
 
     NOTE: if midden labels are used and should be processed, this tiling
     function must be called before any of the other ones for the other 
@@ -224,9 +192,7 @@ def tile_thermal_orthomosaic(orthomosaic_path: str, with_midden_labels: bool, mi
     thermal_orthomosaic = np.load(orthomosaic_path, allow_pickle=True)
     print(f"thermal orthomosaic shape: {thermal_orthomosaic.shape}")
     if with_midden_labels == True: midden_matrix = np.load(midden_path, allow_pickle=True)
-    # THERMAL_INTERVAL = 40 # width and height of cropped thermal images in pixels, is 1/10 of interval for RGB for firestorm TODO
-    THERMAL_INTERVAL = 80
-    # THERMAL_INTERVAL = 120 # width and height of cropped thermal images in pixels, is 1/10 of interval for RGB for firestorm TODO
+    THERMAL_INTERVAL = thermal_interval
     THERMAL_STRIDE = 0 # overlap of cropped thermal images in pixels
     THERMAL_STEP = int(THERMAL_INTERVAL / 2 + THERMAL_STRIDE) # from before messed with all params: 30
     thermal_images = [] # images cropped from orthomosaic
@@ -261,7 +227,7 @@ def tile_thermal_orthomosaic(orthomosaic_path: str, with_midden_labels: bool, mi
     return thermal_images, identifiers, max_pixel_vals, labels, constants
         
 
-def tile_rgb_orthomosaic(orthomosaic_path: str):
+def tile_rgb_orthomosaic(orthomosaic_path: str, rgb_interval: int):
     """
     Slices the RGB orthomosaic (numpy array processed from tiff for
     RGB data by 'align_orthomosaics.py') into uniformly sized pieces.
@@ -272,6 +238,10 @@ def tile_rgb_orthomosaic(orthomosaic_path: str):
         absolute path to file containing RGB orthomosaic (file type:
         .npy) processed by 'align_orthomosaics.py'
 
+    rgb_interval: int
+        side length (in pixels) of the tiled images sliced from the RGB
+        orthomosaic
+
     Returns:
     --------
     rgb_images: list
@@ -281,15 +251,10 @@ def tile_rgb_orthomosaic(orthomosaic_path: str):
     # crop RGB orthomosaic
     rgb_orthomosaic = np.load(orthomosaic_path, allow_pickle=True)
     print(f"rgb orthomosaic shape: {rgb_orthomosaic.shape}")
-    # RGB_INTERVAL = 400 # width of cropped thermal images in pixels, is 10x that of thermal
-    RGB_INTERVAL = 800
-    # RGB_INTERVAL = 1200
-    RGB_STRIDE = 0 # overlap of cropped thermal images in pixels
-    RGB_STEP = int(RGB_INTERVAL / 2 + RGB_STRIDE) # OLD: 300
+    RGB_INTERVAL = rgb_interval
+    RGB_STRIDE = 0 # overlap of cropped images in pixels
+    RGB_STEP = int(RGB_INTERVAL / 2 + RGB_STRIDE) 
     rgb_images = [] # images cropped from orthomosaic
-    # TODO: these are unused ?
-    # if with_labels == True: rgb_midden_images = [] # subset of the cropped images that contain middens
-    # if with_labels == True: rgb_empty_images = [] # subset of the cropped images that are empty
 
     for bottom in range(RGB_INTERVAL, rgb_orthomosaic.shape[0], RGB_STEP): # begin cropping from the top of the orthomosaic
         for right in range(RGB_INTERVAL, rgb_orthomosaic.shape[1], RGB_STEP): # begin cropping from the left end of the orthomosaic
@@ -305,7 +270,7 @@ def tile_rgb_orthomosaic(orthomosaic_path: str):
 
     return rgb_images, rgb_slicing_consts_dict
 
-def tile_lidar_orthomosaic(orthomosaic_path: str):
+def tile_lidar_orthomosaic(orthomosaic_path: str, lidar_interval: int):
     """
     Slices the LiDAR orthomosaic (numpy array processed from tiff for
     RGB data by 'align_orthomosaics.py') into uniformly sized pieces.
@@ -316,6 +281,10 @@ def tile_lidar_orthomosaic(orthomosaic_path: str):
         absolute path to file containing LiDAR orthomosaic (file type:
         .npy) processed by 'align_orthomosaics.py'
 
+    lidar_interval: int
+        side length (in pixels) of the tiled images sliced from the LiDAR
+        orthomosaic
+
     Returns:
     --------
     lidar_images: list
@@ -325,11 +294,9 @@ def tile_lidar_orthomosaic(orthomosaic_path: str):
     # crop LiDAR orthomosaic
     lidar_orthomosaic = np.load(orthomosaic_path)
     print(f"lidar orthomosaic shape: {lidar_orthomosaic.shape}")
-    # LIDAR_INTERVAL = 200 # is 1/2 that of RGB and 5x that of thermal
-    LIDAR_INTERVAL = 400
-    # LIDAR_INTERVAL = 600 # is 1/2 that of RGB and 5x that of thermal
-    LIDAR_STRIDE = 0
-    LIDAR_STEP = int(LIDAR_INTERVAL / 2 + LIDAR_STRIDE) # 60
+    LIDAR_INTERVAL = lidar_interval
+    LIDAR_STRIDE = 0 # amount of overlap between adjacent tiles
+    LIDAR_STEP = int(LIDAR_INTERVAL / 2 + LIDAR_STRIDE)
     lidar_images = []
 
     for bottom in range(LIDAR_INTERVAL, lidar_orthomosaic.shape[0], LIDAR_STEP): # begin cropping from the top of the orthomosaic
@@ -381,7 +348,7 @@ def tile_path_mask_orthomosaic(path_mask_orthomosaic_path: str, rgb_slicing_cons
     return path_mask_images
 
 
-def tile_orthomosaics(thermal_orthomosaic_path: str, rgb_orthomosaic_path: str, lidar_orthomosaic_path: str, midden_orthomosaic_path: str, path_mask_orthomosaic_path: str, thermal_processing_constants_path: str, output_folder: str, save_thermal: bool, save_rgb: bool, save_lidar: bool, save_midden_mask: bool, save_path_mask: bool):
+def tile_orthomosaics(thermal_orthomosaic_path: str, rgb_orthomosaic_path: str, lidar_orthomosaic_path: str, midden_orthomosaic_path: str, path_mask_orthomosaic_path: str, thermal_processing_constants_path: str, output_folder: str, save_thermal: bool, save_rgb: bool, save_lidar: bool, save_midden_mask: bool, save_path_mask: bool, rgb_tile_size: str):
     """
     Tiles all of the orthomosaics corresponding to each type of data (thermal, 
     RGB, LiDAR, and masks).  (Slices each of the orthomosaics into uniformly
@@ -440,6 +407,13 @@ def tile_orthomosaics(thermal_orthomosaic_path: str, rgb_orthomosaic_path: str, 
         and its corresponding numpy array will be stored at index i of the
         list stored at the location
          '{output_folder}/{modality}-tiles/numpy-images.npy'  
+
+    rgb_tile_size: str
+        should be an integer (can be inputted as a string) specifying the side
+        length (in pixels) of the RGB tiles sliced from the RGB orthomosaic.
+        Note that image tiles are square, and that the image tiles from the other
+        modalities will be sliced such that each image i of that modality covers
+        the same region as image i from the RGB orthomosaic.
     """
     # tile orthomosaics
 
@@ -448,19 +422,27 @@ def tile_orthomosaics(thermal_orthomosaic_path: str, rgb_orthomosaic_path: str, 
     if midden_orthomosaic_path is not None:
         with_midden_labels = True
 
+    # calculate side lengths (in pixels) of image tiles for each modality, based
+    # on that specified for the RGB tiles (this ensures all the tiles are aligned
+    # so that tile i of the RGB covers the same region as tile i in any other modality)
+    # NOTE: this assumes working with firestorm-3
+    rgb_interval = int(rgb_tile_size) # cast bc was inputted as a system argument, which is a str
+    thermal_interval = rgb_interval / 10
+    lidar_interval = rgb_interval / 2
+
     # First must tile thermal orthomosaic
-    thermal_images, identifiers, max_pixel_vals, labels, constants = tile_thermal_orthomosaic(thermal_orthomosaic_path, with_midden_labels, midden_orthomosaic_path, thermal_processing_constants_path)
+    thermal_images, identifiers, max_pixel_vals, labels, constants = tile_thermal_orthomosaic(thermal_orthomosaic_path, with_midden_labels, midden_orthomosaic_path, thermal_processing_constants_path, thermal_interval)
     
     # Then tile any other orthomosaic specified to be tiled
     if (rgb_orthomosaic_path is not None):
-        rgb_images, rgb_slicing_consts_dict = tile_rgb_orthomosaic(rgb_orthomosaic_path)
+        rgb_images, rgb_slicing_consts_dict = tile_rgb_orthomosaic(rgb_orthomosaic_path, rgb_interval)
 
     if (lidar_orthomosaic_path is not None):
-        lidar_images = tile_lidar_orthomosaic(lidar_orthomosaic_path)
+        lidar_images = tile_lidar_orthomosaic(lidar_orthomosaic_path, lidar_interval)
     
     # must have sliced the RGB orthomosaic to slice the animal path mask orthomosaic
     if (path_mask_orthomosaic_path is not None and rgb_orthomosaic_path is not None):
-        path_masks = tile_path_mask_orthomosaic(path_mask_orthomosaic_path, rgb_slicing_consts_dict)
+        path_masks = tile_path_mask_orthomosaic(path_mask_orthomosaic_path, rgb_slicing_consts_dict, rgb_interval)
 
     print("Number of images of each modality before removing empty images:")
     print(len(thermal_images), ' thermal images')
@@ -471,25 +453,6 @@ def tile_orthomosaics(thermal_orthomosaic_path: str, rgb_orthomosaic_path: str, 
     if path_mask_orthomosaic_path is not None:
         print(len(path_masks), ' animal path mask images')
 
-    # remove images that are all-black in RGB and their corresponding masks
-    # TODO just merge with remove empty images below once fix identifiers issue
-    # where have a diff num of pictures for diff image modalities
-    # TODO: way of checking if < 1/10 of image non-black?
-    # saved_indices = []
-    # if rgb_orthomosaic_path is not None:
-    #     for i in reversed(range(len(rgb_images))):
-    #         # skip all-black RGB image and its corresponding mask
-    #         if np.all(rgb_images[i] == 0):
-    #             del rgb_images[i]
-    #             if path_mask_orthomosaic_path is not None:
-    #                 del path_masks[i]
-    #             # TODO this will fail if has a diff number of images
-    #             # if lidar_orthomosaic_path is not None:
-    #             #     del lidar_images[i]
-    #         # image tile i saved successfully, keep track of this
-    #         else:
-    #             saved_indices.append(i)
-
 
     # remove empty images
     for i in reversed(range(len(identifiers))): # NOTE: num of identifiers is not same across all modalities currently
@@ -497,10 +460,6 @@ def tile_orthomosaics(thermal_orthomosaic_path: str, rgb_orthomosaic_path: str, 
         # of thermal, RGB, or LiDAR), remove it in all modalities
         # exclude path masks from if statement because it is valid to have 
         # an empty mask if there are no paths in the image
-        # TODO should this be if its all black in any modality? (is this fine in lidar?)
-        # (or remove if its all black in rgb?)
-        # if (np.all(thermal_images[i] == 0) and (rgb_orthomosaic_path is None or (rgb_orthomosaic_path is not None and np.all(rgb_images[i] == 0)))
-        #     and (lidar_orthomosaic_path is None or (lidar_orthomosaic_path is not None and np.all(lidar_images[i] == 0)))):
         if (np.all(thermal_images[i] == 0) or (rgb_orthomosaic_path is not None and np.all(rgb_images[i] == 0))
             or (lidar_orthomosaic_path is not None and np.all(lidar_images[i] == 0))):
             del thermal_images[i]
@@ -526,11 +485,7 @@ def tile_orthomosaics(thermal_orthomosaic_path: str, rgb_orthomosaic_path: str, 
         print(len(path_masks), ' animal path mask images')
     print("Additional statistics:")
     print(len(max_pixel_vals), ' maximum pixel values')
-    # would need to loop through list
-    # print(identifiers, ' identifiers list (list of the indices of the image tiles that were saved, corresponds to all image modalities)')
-    # TODO put back in once all modalities are tiled into same number of images, replace savied_indices
     print(len(identifiers), ' number of unique image identifiers saved')
-    # print(len(saved_indices), ' number of unique RGB image tiles and corresponding masks saved')
     if with_midden_labels: 
         print(len(labels), ' midden labels')
     if with_midden_labels: 
@@ -539,22 +494,22 @@ def tile_orthomosaics(thermal_orthomosaic_path: str, rgb_orthomosaic_path: str, 
     # save data
     if not os.path.exists(output_folder):
         os.mkdir(output_folder)
+
     if save_thermal:
-        save_matrices_to_png_plt2(thermal_images, 'thermal', output_folder)
+        save_matrices_to_png_plt2(thermal_images, 'thermal', output_folder, rgb_tile_size)
         print('thermal images saved')
 
     if save_rgb:
-        save_matrices_to_png_plt2(rgb_images, 'rgb', output_folder)
+        save_matrices_to_png_plt2(rgb_images, 'rgb', output_folder, rgb_tile_size)
         print('RGB images saved')
     
     if save_path_mask:
-        save_matrices_to_png_plt2(path_masks, "path-mask", output_folder)
+        save_matrices_to_png_plt2(path_masks, "path-mask", output_folder, rgb_tile_size)
 
     if save_lidar:
-        save_matrices_to_png_plt2(lidar_images, 'lidar', output_folder)
+        save_matrices_to_png_plt2(lidar_images, 'lidar', output_folder, rgb_tile_size)
         print('LiDAR images saved')
 
-    # TODO in future mkoutput dir if doesn't exist
 
     np.save(f'{output_folder}/tile-processing-constants', constants)
     print('constants saved')
@@ -563,17 +518,13 @@ def tile_orthomosaics(thermal_orthomosaic_path: str, rgb_orthomosaic_path: str, 
     if with_midden_labels == True: np.save(f'{output_folder}/midden-label-indices', list(range(len(labels))))
     if with_midden_labels == True: print('labels saved')
 
-    # TODO put back in once all modalities are tiled into same number of images, replace saved_indices
     np.save(f'{output_folder}/image-tile-identifiers', identifiers)
     print('identifiers saved')
-    # np.save(f'{output_folder}/image-tile-ids-saved', saved_indices)
-    # print('indices of saved images saved')
 
     np.save(f'{output_folder}/max-pixel-vals', max_pixel_vals)
     print('max pixel vals saved')
 
 
-# TODO remove this and put in separate scripts folder outside innermost AnimalPathMapping directory
 if __name__ == '__main__':
     # process system arguments (excluding script name)
     arguments = [None] * (len(sys.argv) - 1)
@@ -592,20 +543,6 @@ if __name__ == '__main__':
         else:
             arguments[i] = sys.argv[i+1]
 
-    
-    
     # process each of the tiffs passed in into numpy arrays, aligning them
     # with each other, and saving them to the specified file path (if saving)
     tile_orthomosaics(*arguments)
-
-
-# TODO instead of hardcoding interval, calculate it
-# RGB is 10* thermal, LIDAR is 5*thermal
-# aka factor of diff btn shapes (for height and width sep, should be same)
-
-# TODO: after processing masks into dilated pngs, need to resize everything so same size
-# maybe should just save the rgbs, thermal, and lidar images to the desired same size here
-# right now they're all getting saved to diff sizes, Lucia's dpi thing was to set them to
-# same size
-# Lucia also recommending slicing over a wider area than 400x400px bc paths are long and
-# then just downscaling to smaller size

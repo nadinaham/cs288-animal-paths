@@ -14,8 +14,12 @@ outputs: for an image with id 'i' that gets rotated 'd' degrees, it will get a n
     where each mask m will be named:
         'image_l_i-rot-{d}_{seg/vis}_mask.{npy/png}' (option a of a/b if segmentation mask, option b for visualization mask)
 
+NOTE: this currently assumes the image modality in use is RGB 
+(so 'modality1' must be 'rgb').
 
-TODO this currently assumes one image modality, make option for including thermal in addition to RGB
+To run, use 'rotate_parallel_processing.sh' under 'AnimalPathMapping/sbatchs/data_processing'
+and fill in the variables appropriately (read all instructions carefully, it will refer you
+to using 'get_rotation_parallel_processing_cmds.sh')
 '''
 
 # imports

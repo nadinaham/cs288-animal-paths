@@ -3,7 +3,8 @@ fuse by Samantha Marks and Lucia Gordon
 inputs: thermal, RGB, and LiDAR image arrays
 outputs: fused image arrays for thermal-RGB, thermal-LiDAR, and RGB-LiDAR
 
-TODO: make parallelized version of this which grabs by image id (path to image with same id for each of the modalities as input)
+NOTE: the parallelized version, in 'fuse_png_parallel.py' is the preferred
+script to run, as it is SIGNIFICANTLY faster.
 '''
 
 # imports
@@ -66,30 +67,6 @@ def fuse(image_tiles_path: str, output_path: str, modality1: str, images1: list,
 
     return fused_arrays
 
-# def load_images(image_tiles_path: str):
-#     """
-#     Loads the image tiles processed by 'tile_orthomosaic.py', which stored
-#     them in a list of numpy arrays in a .npy file.
-
-#     Parameters:
-#     -----------
-#     image_tiles_path: str
-#         absolute path to directory containing all of the image tiles across
-#         all of the modalities to fuse.  This was the 'output_folder' argument
-#         to 'tile_orthomosaic.py', and this script stored image tiles in the
-#         following directory structure:
-
-#         {output_folder}/{modality}-tiles/png-images'
-#                 with .png images stored inside named {modality}-{i}.png
-#                 for some integers i
-#             {output_folder}/{modality}-tiles/numpy-images'
-#                 with a 'all-numpy-images.npy' file inside
-#         NOTE: there must be a subfolder for each modality to be fused
-#     """
-#     thermal_images = np.load(f'{output_folder}/thermal-tiles/numpy-images/all-numpy-images.npy')
-#     rgb_images = np.load(f'{output_folder}/rgb-tiles/numpy-images/all-numpy-images.npy')
-#     lidar_images = np.load(f'{output_folder}/lidar-tiles/numpy-images/all-numpy-images.npy')
-#     return(thermal_images, rgb_images, lidar_images)
 
 def fuse_images(image_tiles_path: str, options: list):
     """
@@ -121,11 +98,11 @@ def fuse_images(image_tiles_path: str, options: list):
     load_thermal = False
     load_rgb = False
     load_lidar = False
-    for (option in options):
+    for option in options:
         if option == "tr":
             load_thermal = True
             load_rgb = True
-        elif option == "tl"
+        elif option == "tl":
             load_thermal = True
             load_lidar = True
         elif option == "rl":
@@ -147,17 +124,17 @@ def fuse_images(image_tiles_path: str, options: list):
         lidar_images = np.load(f'{image_tiles_path}/lidar-tiles/numpy-images/all-numpy-images.npy')
 
     # fuse together images of the different modalities specified
-    for (option in options):
+    for option in options:
         if option == "tr":
             output_path = f'{image_tiles_path}/fused/tr-fused'
             if not os.path.exists(output_path):
                 os.mkdir(output_path)
             np.save(f'{output_path}/tr-fused-all.npy', fuse(image_tiles_path, output_path, 'thermal', thermal_images, 'rgb', rgb_images))
             print('thermal-RGB fusing done')
-        elif option == "tl"
+        elif option == "tl":
             output_path = f'{image_tiles_path}/fused/tl-fused'
-                if not os.path.exists(output_path):
-                    os.mkdir(output_path)
+            if not os.path.exists(output_path):
+                os.mkdir(output_path)
             np.save(f'{output_path}/tl-fused-all.npy', fuse(image_tiles_path, output_path, 'thermal', thermal_images, 'lidar', lidar_images))
             print('thermal-LiDAR fusing done')
         elif option == "rl":
@@ -168,12 +145,12 @@ def fuse_images(image_tiles_path: str, options: list):
             print('RGB-LiDAR fusing done')
         else: # option is trl
             output_path = f'{image_tiles_path}/fused/trl-fused'
-                if not os.path.exists(output_path):
-                    os.mkdir(output_path)
+            if not os.path.exists(output_path):
+                os.mkdir(output_path)
             np.save(f'{output_path}/trl-fused-all.npy', fuse(image_tiles_path, output_path, 'thermal', thermal_images, 'rgb', rgb_images, 'lidar', lidar_images))
             print('thermal-RGB-LiDAR fusing done')
 
-# TODO remove this and put in separate scripts folder outside innermost AnimalPathMapping directory
+
 if __name__ == '__main__':
     # process system arguments (excluding script name)
     print("System arguments:")

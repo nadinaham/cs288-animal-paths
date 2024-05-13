@@ -3,8 +3,9 @@ align-orthomosaics by Samantha Marks, Lucia Gordon, and Samuel Collier
 inputs: thermal, RGB, LiDAR, and mask tiffs
 outputs: thermal, RGB, LiDAR, and mask matrices (numpy arrays)
 
-TODO: remove this later, put in a sep script in a scripts folder
-To run, type in the terminal
+To run, use 'process_orthomosaics.sh' under 'AnimalPathMapping/sbatchs/data_processing'
+and fill in the variables appropriately.
+OR: type in the terminal:
 python align_orthomosaics.py thermal_tiff_path, rgb_tiff_path, lidar_tiff_path, 
     mask_tiff_path, save_thermal, save_rgb, save_lidar, save_mask
 
@@ -16,27 +17,8 @@ arguments listed above.
 import os
 import numpy as np
 import sys
-# import utils
 from osgeo import gdal
 from sys import argv
-
-# global variables
-# project_dir = utils.get_project_dir()
-# site = utils.get_site()
-
-# paths
-# thermal_tiff_path = f'{project_dir}/{site}/tiffs/thermal.tiff'
-# rgb_tiff_path = f'{project_dir}/{site}/tiffs/rgb.tiff'
-# lidar_tiff_path = f'{folder}/tiffs/lidar.tif'
-
-# folders
-# if not os.path.exists(f'{folder}/data/'):
-#     os.mkdir(f'{folder}/data/')
-
-# for modality in ['thermal', 'rgb', 'lidar']:
-#     # if not os.path.exists(f'{folder}/data/{modality}'):
-#     #     os.mkdir(f'{folder}/data/{modality}')
-#     os.makedirs(f'{project_dir}/{site}/data/{modality}')
 
 # functions
 def crop_array(matrix):
@@ -262,9 +244,6 @@ def process_RGB_orthomosaic_aligned_with_thermal(rgb_tiff_path: str, thermal_cro
     """
     # process RGB orthomosaic
     print('RGB orthomosaic')
-    # unused?
-    # RGB_INTERVAL = 400 # width of cropped RGB images in pixels
-    # RGB_STRIDE = 100 # overlap of cropped RGB images in pixels
 
     rgb_dataset = gdal.Open(rgb_tiff_path) # converts the tiff to a Dataset object
 
@@ -290,18 +269,17 @@ def process_RGB_orthomosaic_aligned_with_thermal(rgb_tiff_path: str, thermal_cro
     print('original orthomosaic shape =', rgb_bands.shape)
 
 
-    # TODO: next two lines: do same thing for mask.tiff, noting only have 1 band?
     THERMAL_TOP_FINAL = thermal_cropping_coordinates_m["THERMAL_TOP_FINAL"]
     THERMAL_LEFT_FINAL = thermal_cropping_coordinates_m["THERMAL_LEFT_FINAL"]
     THERMAL_BOTTOM_FINAL = thermal_cropping_coordinates_m["THERMAL_BOTTOM_FINAL"]
     THERMAL_RIGHT_FINAL = thermal_cropping_coordinates_m["THERMAL_RIGHT_FINAL"]
     print(f"thermal cropping coordinates: {thermal_cropping_coordinates_m}")
-    # get the coordinates to crop the RGB orthomosaic at to cover the same 
-    # area as the thermal orthomosaic
+    # get the coordinates (in pixels) to crop the RGB orthomosaic at to cover 
+    # the same area as the thermal orthomosaic (by matching up the meters coords
+    # of both the thermal and RGB orthomosaics and then converting to RGB pixel coords)
     rgb_cropping_coordinates_px = {}
     rgb_cropping_coordinates_px["top"] = int((THERMAL_TOP_FINAL - RGB_TOP) / RGB_PIXEL_HEIGHT)
     rgb_cropping_coordinates_px["bottom"] = int(rgb_bands.shape[0] + (THERMAL_BOTTOM_FINAL - RGB_BOTTOM) / RGB_PIXEL_HEIGHT)
-    # TODO: should I have done the abs?  Or is there somethign else wrong?
     rgb_cropping_coordinates_px["left"] = int((THERMAL_LEFT_FINAL - RGB_LEFT) / RGB_PIXEL_WIDTH) 
     rgb_cropping_coordinates_px["right"] = int(rgb_bands.shape[1] + (THERMAL_RIGHT_FINAL - RGB_RIGHT) / RGB_PIXEL_WIDTH)
     print(f"rgb cropping coordinates, px: {rgb_cropping_coordinates_px}")
@@ -320,7 +298,6 @@ def process_RGB_orthomosaic_aligned_with_thermal(rgb_tiff_path: str, thermal_cro
         rgb_orthomosaic = rgb_bands[rgb_cropping_coordinates_px["top"] : rgb_cropping_coordinates_px["bottom"], rgb_cropping_coordinates_px["left"] : rgb_cropping_coordinates_px["right"]].astype('uint8') 
         print('orthomosaic shape after cropping to match thermal =', rgb_orthomosaic.shape)
         # save RGB orthomosaic as numpy array
-        # np.save(f'{folder}/data/rgb/rgb-orthomosaic-matrix', rgb_orthomosaic) 
         np.save(f'{save_image}', rgb_orthomosaic)
 
     return rgb_cropping_coordinates_px
@@ -395,11 +372,11 @@ def process_lidar_orthomosaic_aligned_with_thermal(lidar_tiff_path: str, thermal
     THERMAL_RIGHT_FINAL = thermal_cropping_coordinates_m["THERMAL_RIGHT_FINAL"]
     THERMAL_INTERVAL = thermal_interval
 
-    # get coordinates (in pixels) to crop the lidar image at
+    # get coordinates (in pixels) to crop the lidar image at (crop at the same
+    # meters coords as for the thermal image and then convert to pixel coords
+    # in the thermal images)
     lidar_top = int((THERMAL_TOP_FINAL - LIDAR_TOP) / LIDAR_PIXEL_HEIGHT)
     lidar_bottom = int(lidar_orthomosaic_masked.shape[0] + (THERMAL_BOTTOM_FINAL - LIDAR_BOTTOM) / LIDAR_PIXEL_HEIGHT)
-    # todo should this have been (nvm)
-    # lidar_bottom = int(lidar_orthomosaic_masked.shape[0] +((THERMAL_BOTTOM_FINAL - LIDAR_BOTTOM) / LIDAR_PIXEL_HEIGHT))
     lidar_left = int((THERMAL_LEFT_FINAL - LIDAR_LEFT) / LIDAR_PIXEL_WIDTH)
     lidar_right = int(lidar_orthomosaic_masked.shape[1] + (THERMAL_RIGHT_FINAL - LIDAR_RIGHT) / LIDAR_PIXEL_WIDTH)
 
@@ -415,25 +392,7 @@ def process_lidar_orthomosaic_aligned_with_thermal(lidar_tiff_path: str, thermal
         # crop lidar image so that it is aligned with thermal image
         lidar_orthomosaic = lidar_orthomosaic_masked[lidar_top : lidar_bottom, lidar_left : lidar_right].astype('uint8') # crop the LiDAR orthomosaic to cover the same area as the thermal orthomosaic
         print(f"initial lidar cropped coordinates: {lidar_orthomosaic.shape}")
-
-        # NOTE: this is wrong
-        # # if lidar_orthomosaic.shape[0] != thermal_orthomosaic.shape[0] * LIDAR_INTERVAL / THERMAL_INTERVAL: # if the LiDAR orthomosaic has fewer rows than the thermal orthomosaic
-        # if lidar_orthomosaic.shape[0] != thermal_orthomosaic_shape[0] * LIDAR_INTERVAL / THERMAL_INTERVAL: # if the LiDAR orthomosaic has fewer rows than the thermal orthomosaic
-        #     # TODO something going wrong here, num_new_rows is negative
-        #     num_new_rows = int(thermal_orthomosaic_shape[0] * LIDAR_INTERVAL / THERMAL_INTERVAL - lidar_orthomosaic.shape[0])
-        #     print(f"new rows calculation: {num_new_rows}")
-        #     print(f"Thermal interval: {THERMAL_INTERVAL}")
-        #     print(f"lidar orthomosaic shape[0] {lidar_orthomosaic.shape[0]}")
-        #     new_rows = np.zeros((num_new_rows, lidar_orthomosaic.shape[1]))
-        #     # new_rows = np.zeros((int(thermal_orthomosaic.shape[0] * LIDAR_INTERVAL / THERMAL_INTERVAL - lidar_orthomosaic.shape[0]), lidar_orthomosaic.shape[1]))
-        #     # add empty new rows to the bottom of the lidar orthomosaic so
-        #     # that it has a matching number of rows to the thermal orthomosaic
-        #     # accounting for resolution differences (??)
-        #     lidar_orthomosaic = np.vstack((lidar_orthomosaic, new_rows))
-
         print('orthomosaic shape after cropping to match thermal =', lidar_orthomosaic.shape)
-
-        # np.save(f'{folder}/data/lidar/lidar-orthomosaic-matrix', lidar_orthomosaic) # save LiDAR orthomosaic as numpy array
         np.save(f'{save_image}', lidar_orthomosaic) # save LiDAR orthomosaic as numpy array
 
 
@@ -544,7 +503,7 @@ def align_process_tiffs(thermal_tiff_path: str, rgb_tiff_path: str, lidar_tiff_p
         process_lidar_orthomosaic_aligned_with_thermal(lidar_tiff_path, thermal_cropping_coordinates_m, thermal_orthomosaic_shape, thermal_interval, save_lidar)
     
     
-# TODO remove this and put in separate scripts folder outside innermost AnimalPathMapping directory
+
 if __name__ == '__main__':
     # process system arguments
     print("System arguments")

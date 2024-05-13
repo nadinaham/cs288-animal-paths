@@ -1,11 +1,20 @@
 """
-File created by Samantha Marks for processing animal path masks from tiled (png) images.
-This ensures that each path within a tiled image gets its own individual mask, with one
-mask per distinct path in each tiled image.
+process_masks_parallel by Samantha Marks
+inputs: tiled animal path mask images (as .npy files) outputted from
+        'tile_orthomosaic.py' using the path mask options (must have provided
+        a path to the animal path mask orthomosaic AND set save for the path
+        masks to True)
+outputs: processed mask tiles, such that each path mask tile corresponding to
+        image tile i (of the RGB/thermal tiles) gets a new directory which
+        contains a set of masks (as .npy for model training and .pngs visualization)
+        for each path with a unique label within the tile.  (See 'process_mask()' for
+        details).  This ensures that each uniquely labeled path within a tiled 
+        image gets its own individual mask, with one mask per distinct path 
+        in each tiled image.  
 
-NOTE: this is the parallelized version, meaning it processes exactly 1 mask at a
-provided file.  It should be called with the process_masks_parallel.sh sbatch
-script.
+To run, use 'process_masks_parallel.sh' under 'AnimalPathMapping/sbatchs/data_processing'
+and fill in the variables appropriately (read all instructions carefully, it will refer you
+to using 'get_mask_parallel_processing_cmds.sh')
 """
 
 import os
@@ -34,10 +43,14 @@ def process_mask(mask_path: str, output_path: str, separate_masks: bool, dilate:
     Parameters:
     -----------
     mask_path: str
-        TODO
+        absolute path to mask tile .npy file (tile created by 'tile_orthomosaic.py')
+        to be processed into masks that an image segmentation model can use.
 
     output_path: str
-        TODO
+        absolute path to folder to output the processed masks to. NOTE: for downstream
+        processing, this should end with 'path-masks-finished/' where the parent directory
+        of the 'path-masks-finished' directory is same as the parent directory for 'path-mask-tiles'
+        (created by 'tile_orthomosaic.py'), where the 'mask_path' is a file stored in 'path-mask-tiles'
 
     separate_masks: bool
         if True: creates a separate mask file for each unique path label in 
@@ -55,6 +68,17 @@ def process_mask(mask_path: str, output_path: str, separate_masks: bool, dilate:
         otherwise: processes the masks as labeled, does not dilate them or
             modify their size in any way
     """
+    if not os.path.exists(output_path):
+        try:
+            os.mkdir(output_path)
+        except:
+            # assume some other process running in parallel made this directory
+            # (Note: may also fail if none of the directories above the current directory
+            # exist, this is due to our suggestion that this output_path ends in a directory
+            # which is a child directory of an already existing parent directory containing the
+            # directory from which the mask being processed is stored)
+            pass
+
     # TODO make output_path directory using os.makedirs to get the full file path (code currently
     # breaks if outermost output_path dir not already amde)
     # Get base name of mask_path (just the file_name.extension at the end
@@ -102,10 +126,9 @@ def process_mask(mask_path: str, output_path: str, separate_masks: bool, dilate:
     mask = np.load(mask_path, allow_pickle=True)
 
 
-    # Create kernel for dilating 1px path mask label to being 10px wide
-    # TODO remove
-    # kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (10, 10))
-    # now 20px wide
+    # Create kernel for dilating 1px path mask label to being 20px wide
+    # (this is chosen based off of visual examination of the animal path widths
+    # to ensure the dilated labels will cover the full width of the paths they label)
     kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (20, 20))
 
     # for converting to png: value 0 in 2D binary array maps to (0, 0, 0)
@@ -171,11 +194,6 @@ def process_mask(mask_path: str, output_path: str, separate_masks: bool, dilate:
         vis_mask_img.save(f'{mask_vis_basename}_1.png')
 
         
-            
-    
-
-
-# TODO remove this and put in separate scripts folder outside innermost AnimalPathMapping directory
 if __name__ == '__main__':
     print("System arguments:")
     for i in range(len(sys.argv) - 1):
