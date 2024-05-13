@@ -1,0 +1,12 @@
+README.md
+setup.py
+AnimalPathMapping/__init__.py
+AnimalPathMapping/helpers.py
+AnimalPathMapping.egg-info/PKG-INFO
+AnimalPathMapping.egg-info/SOURCES.txt
+AnimalPathMapping.egg-info/dependency_links.txt
+AnimalPathMapping.egg-info/top_level.txt
+AnimalPathMapping/data_processing/__init__.py
+AnimalPathMapping/models/__init__.py
+tests/__init__.py
+tests/hello_word.py
