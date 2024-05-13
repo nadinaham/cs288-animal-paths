@@ -106,7 +106,7 @@ ________________________________________________________________________________
 2. There are three files and accompanying bash scripts:
 - `train_test_custom_data_new_metric_rotate.py`: training and testing code for rotated data (as seen in Experiment 3). Note that the training losses are plotted and stored in the output directory once the job completes. The testing data is printed as a part of the bash_output .out file near the end:
 
-![Example test in output](./ex_test_output.png)
+![Example test in output](./example-metrics-output.PNG)
 
 - `train_test_custom_data_new-metric.py`: training and testing code for all other data types. Note again that the training losses are plotted and stored in the output directory once the job completes. The testing data is printed as a part of the bash_output .out file near the end
 
