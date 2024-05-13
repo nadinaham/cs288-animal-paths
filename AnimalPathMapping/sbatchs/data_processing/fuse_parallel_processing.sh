@@ -8,10 +8,15 @@
 #SBATCH -o bash-outputs/fuse-parallel/%A-%a.out  # File to which STDOUT will be written, %A inserts jobid %a inserts array id
 #SBATCH -e bash-errors/fuse-parallel/%A-%a.err  # File to which STDERR will be written, %A inserts jobid %a inserts array id
 
-## NOTE: change this to index which jobs from a job array file you would like to run,
-## should be 1-<line number of last line in job array file>
 ## the job array file for this is 'fuse_parallel_processing_cmds.sh', 
 ## the output of running 'bash get_fuse_parallel_processing_cmds.sh'
+
+## NOTE: CHANGE #SBATCH line below this to index which jobs from the job array 
+## file you would like to run,
+## should be 1-<line number of last line in job array file>
+## for instance, if there are 'l' lines in 'fuse_parallel_processing_cmds.sh'.
+## you should enter: #SBATCH --array 1-l 
+## (NOTE: maximum value of l is 9999, also array must start with 1-)
 #SBATCH --array 1-2705
 
 source /n/sw/eb/apps/centos7/Anaconda3/2020.11/etc/profile.d/conda.sh
@@ -24,4 +29,4 @@ module load gcc/13.2.0-fasrc01
 
 ## Run the job array (submits all the jobs in parallel to the cluster)
 echo "$SLURM_ARRAY_TASK_ID"
-awk 'NR=='"$SLURM_ARRAY_TASK_ID"'' fuse_parallel_processing_cmds_90.sh | bash
+awk 'NR=='"$SLURM_ARRAY_TASK_ID"'' fuse_parallel_processing_cmds.sh | bash

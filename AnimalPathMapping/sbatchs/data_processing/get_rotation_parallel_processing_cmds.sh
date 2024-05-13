@@ -29,7 +29,7 @@ rotate_corresp_masks="True"
 ## would result in rotating all masks inside '/path-masks-finished/image_{ident}_segmentation_masks'
 ## as well as all masks inside '/path-masks-finished/masks_sep/image_{ident}_segmentation_masks'
 mask_folders=(
-    masks_sep masks_tog_fixed
+    masks_sep
 )
 
 mask_folders_str=$(IFS=,; echo "${mask_folders[*]}")
@@ -39,12 +39,9 @@ python_script="/n/davies_lab/Lab/shared_projects/AnimalPathMapping/cs288-animal-
 
 ## Place where the scripts to process each mask (in parallel) will be stored
 ## commands_to_run_file="\n\davies_lab\Lab\shared_projects\AnimalPathMapping\cs288-animal-paths\AnimalPathMapping\sbatchs\data_processing\mask_parallel_processing_cmds.sh"
-commands_to_run_file="rotation_parallel_processing_cmds_both.sh"
+commands_to_run_file="rotation_parallel_processing_cmds.sh"
 
 ## Make job arrray file
-# ls $input_image_folder/*[0-9].png | tr -d "*" | awk '{print "python '$python_script' "$1" '$rotate_corresp_masks'"}' > $commands_to_run_file
 ls $input_image_folder/*[0-9].png | tr -d "*" | awk '{print "python '$python_script' "$1" '$rotate_corresp_masks' '$mask_folders_str'"}' > $commands_to_run_file
-## Note that NR will be the new image id (NR is the current awk record number)
-# ls $input_image_folder/*[0-9].png | tr -d "*" | awk '{print "python '$python_script' "$1" '$rotate_corresp_masks' '$mask_folders_str' "NR"'"}' > $commands_to_run_file
 
 ## run this using 'bash get_rotation_parallel_processing_cmds.sh'
